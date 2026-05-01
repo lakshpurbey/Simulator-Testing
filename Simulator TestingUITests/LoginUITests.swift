@@ -29,7 +29,7 @@ final class LoginUITests: XCTestCase {
         let loginButton = app.buttons["loginButton"]
         loginButton.tap()
         
-        let welcome = app.staticTexts["Welcome"]
+        let welcome = app.staticTexts["welcomeText"]
         XCTAssertTrue(welcome.waitForExistence(timeout: 5))
         
     }

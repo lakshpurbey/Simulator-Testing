@@ -11,7 +11,7 @@ import SwiftUI
 struct Simulator_TestingApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
     }
 }

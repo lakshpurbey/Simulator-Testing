@@ -1,0 +1,43 @@
+name: iOS UI Tests (Parallel)
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  ui-tests:
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        device: ["iPhone 14", "iPhone 15"]
+        shard: [1, 2]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show Xcode Version
+        run: xcodebuild -version
+
+      # Optional: cache builds
+      - name: Cache DerivedData
+        uses: actions/cache@v3
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift') }}
+
+      - name: Run Login UI Tests (Parallel)
+        run: |
+          xcodebuild test \
+          -scheme "Simulator-Testing" \
+          -destination "platform=iOS Simulator,name=${{ matrix.device }}" \
+          -parallel-testing-enabled YES \
+          -parallel-testing-worker-count 2 \
+          -only-testing:Simulator_TestingUITests/LoginUITests/testLoginFlow \
+          | xcpretty
