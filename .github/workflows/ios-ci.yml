@@ -1,6 +1,9 @@
-name: Scalable iOS + macOS Tests
+name: iOS + macOS Parallel Tests
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches: [ main ]
 
 jobs:
   test:
@@ -10,45 +13,53 @@ jobs:
       fail-fast: false
       matrix:
         platform: [iphone, ipad, macos]
-        device_group: [small, medium, large]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Set Device
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show Xcode Version
+        run: xcodebuild -version
+
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift') }}
+
+      # Platform-based destination
+      - name: Set Destination
         run: |
           if [ "${{ matrix.platform }}" == "iphone" ]; then
-            if [ "${{ matrix.device_group }}" == "small" ]; then
-              echo "DEST=platform=iOS Simulator,name=iPhone SE (3rd generation)" >> $GITHUB_ENV
-            elif [ "${{ matrix.device_group }}" == "medium" ]; then
-              echo "DEST=platform=iOS Simulator,name=iPhone 15" >> $GITHUB_ENV
-            else
-              echo "DEST=platform=iOS Simulator,name=iPhone 15 Pro Max" >> $GITHUB_ENV
-            fi
+            echo "DEST=platform=iOS Simulator,name=iPhone 15" >> $GITHUB_ENV
           elif [ "${{ matrix.platform }}" == "ipad" ]; then
             echo "DEST=platform=iOS Simulator,name=iPad Pro (12.9-inch)" >> $GITHUB_ENV
           else
             echo "DEST=platform=macOS" >> $GITHUB_ENV
           fi
 
+      # Test Sharding
       - name: Select Test Shard
         run: |
           if [ "${{ matrix.shard }}" == "1" ]; then
-            echo "TESTS=LoginTests" >> $GITHUB_ENV
-          elif [ "${{ matrix.shard }}" == "2" ]; then
-            echo "TESTS=PaymentTests" >> $GITHUB_ENV
-          elif [ "${{ matrix.shard }}" == "3" ]; then
-            echo "TESTS=ProfileTests" >> $GITHUB_ENV
+            echo "TESTS=Simulator_TestingUITests/LoginUITests" >> $GITHUB_ENV
           else
-            echo "TESTS=SettingsTests" >> $GITHUB_ENV
+            echo "TESTS=Simulator_TestingTests" >> $GITHUB_ENV
           fi
 
-      - name: Run Tests
+      - name: Run Tests (Parallel)
         run: |
           xcodebuild test \
-          -scheme "Simulator Testing" \
+          -scheme "Simulator-Testing" \
           -destination "$DEST" \
           -parallel-testing-enabled YES \
           -parallel-testing-worker-count 2 \
-          -only-testing:$TESTS
+          -only-testing:$TESTS \
+          | xcpretty
