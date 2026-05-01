@@ -1,4 +1,4 @@
-name: iOS UI + Unit Tests (Parallel)
+name: iOS + macOS Parallel Tests
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: ["iPhone 14", "iPhone 15", "iPad Pro (12.9-inch)"]
+        platform: [iphone, ipad, macos]
         shard: [1, 2]
 
     steps:
@@ -34,9 +34,19 @@ jobs:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift') }}
 
-      # Dynamic Test Sharding
+      # Platform-based destination
+      - name: Set Destination
+        run: |
+          if [ "${{ matrix.platform }}" == "iphone" ]; then
+            echo "DEST=platform=iOS Simulator,name=iPhone 15" >> $GITHUB_ENV
+          elif [ "${{ matrix.platform }}" == "ipad" ]; then
+            echo "DEST=platform=iOS Simulator,name=iPad Pro (12.9-inch)" >> $GITHUB_ENV
+          else
+            echo "DEST=platform=macOS" >> $GITHUB_ENV
+          fi
+
+      # Test Sharding
       - name: Select Test Shard
-        id: shard
         run: |
           if [ "${{ matrix.shard }}" == "1" ]; then
             echo "TESTS=Simulator_TestingUITests/LoginUITests" >> $GITHUB_ENV
@@ -48,7 +58,7 @@ jobs:
         run: |
           xcodebuild test \
           -scheme "Simulator-Testing" \
-          -destination "platform=iOS Simulator,name=${{ matrix.device }}" \
+          -destination "$DEST" \
           -parallel-testing-enabled YES \
           -parallel-testing-worker-count 2 \
           -only-testing:$TESTS \
