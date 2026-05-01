@@ -1,4 +1,4 @@
-name: iOS UI Tests (Parallel)
+name: iOS UI + Unit Tests (Parallel)
 
 on:
   pull_request:
@@ -6,13 +6,13 @@ on:
     branches: [ main ]
 
 jobs:
-  ui-tests:
+  test:
     runs-on: macos-latest
 
     strategy:
       fail-fast: false
       matrix:
-        device: ["iPhone 14", "iPhone 15"]
+        device: ["iPhone 14", "iPhone 15", "iPad Pro (12.9-inch)"]
         shard: [1, 2]
 
     steps:
@@ -25,19 +25,31 @@ jobs:
       - name: Show Xcode Version
         run: xcodebuild -version
 
-      # Optional: cache builds
+      - name: Install xcpretty
+        run: gem install xcpretty
+
       - name: Cache DerivedData
         uses: actions/cache@v4
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-deriveddata-${{ hashFiles('**/*.swift') }}
 
-      - name: Run Login UI Tests (Parallel)
+      # Dynamic Test Sharding
+      - name: Select Test Shard
+        id: shard
+        run: |
+          if [ "${{ matrix.shard }}" == "1" ]; then
+            echo "TESTS=Simulator_TestingUITests/LoginUITests" >> $GITHUB_ENV
+          else
+            echo "TESTS=Simulator_TestingTests" >> $GITHUB_ENV
+          fi
+
+      - name: Run Tests (Parallel)
         run: |
           xcodebuild test \
           -scheme "Simulator-Testing" \
           -destination "platform=iOS Simulator,name=${{ matrix.device }}" \
           -parallel-testing-enabled YES \
           -parallel-testing-worker-count 2 \
-          -only-testing:Simulator_TestingUITests/LoginUITests/testLoginFlow \
+          -only-testing:$TESTS \
           | xcpretty
